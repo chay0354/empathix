@@ -37,7 +37,7 @@ function Row({ kind, title, summary, open, onToggle, children }: {
  * The TTS audio is also copied to a track so the avatar's mouth can follow it.
  * Playback waits until `start` (the face is ready, or it is not coming).
  */
-function useCoachVoice(text: string, lang: keyof typeof BCP, mock: boolean, start: boolean, faced: boolean) {
+function useCoachVoice(text: string, lang: keyof typeof BCP, mock: boolean, start: boolean) {
   const [playing, setPlaying] = useState(false);
   const [level, setLevel] = useState(0);
   const [track, setTrack] = useState<MediaStreamTrack | null>(null);
@@ -84,7 +84,8 @@ function useCoachVoice(text: string, lang: keyof typeof BCP, mock: boolean, star
         // The face gets the voice right away; the speakers get it after the face's lag.
         src.connect(dest);
         const d = context.createDelay(2);
-        d.delayTime.value = faced ? lag.current : 0;
+        // Fixed before the first word. Moving this while audio plays stretches the voice.
+        d.delayTime.value = lag.current;
         src.connect(d).connect(context.destination);
         delay.current = d;
         ctx.current = context;
@@ -99,6 +100,10 @@ function useCoachVoice(text: string, lang: keyof typeof BCP, mock: boolean, star
       }
       if (!alive.current) return;
       if (a.ended) a.currentTime = 0;
+      if (delay.current) {
+        delay.current.delayTime.cancelScheduledValues(ctx.current.currentTime);
+        delay.current.delayTime.setValueAtTime(lag.current, ctx.current.currentTime);
+      }
       a.onplay = () => { setPlaying(true); pulse(true); };
       a.onpause = a.onended = () => { setPlaying(false); pulse(false); };
       await a.play();
@@ -127,16 +132,17 @@ function useCoachVoice(text: string, lang: keyof typeof BCP, mock: boolean, star
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, start]);
 
-  /** Glide to the measured lag, so speech already playing is not cut. */
+  /** Remember the face's lag. Apply it only while she is silent, so a live change cannot warp the words. */
   const setLag = useCallback((s: number) => {
-    const v = Math.min(1.5, Math.max(0, s));
+    const v = Math.min(0.8, Math.max(0.3, s));
+    if (Math.abs(v - lag.current) < 0.03) return;
     lag.current = v;
+    const a = audio.current;
     const d = delay.current;
     const c = ctx.current;
-    if (!d || !c) return;
+    if (!d || !c || (a && !a.paused && !a.ended)) return;
     d.delayTime.cancelScheduledValues(c.currentTime);
-    d.delayTime.setValueAtTime(d.delayTime.value, c.currentTime);
-    d.delayTime.linearRampToValueAtTime(v, c.currentTime + 0.5);
+    d.delayTime.setValueAtTime(v, c.currentTime);
   }, []);
 
   return { playing, level, play, pause, track, setLag };
@@ -150,7 +156,7 @@ export function FeedbackScreen({ rec, onRetry, onOther, onReport, onTranscript, 
   const [open, setOpen] = useState<"worked" | "improve" | "next" | null>("worked");
   const [avatar, setAvatar] = useState<"pending" | "ready" | "unavailable">(rec.mock ? "unavailable" : "pending");
   const onAvatar = useCallback((status: "ready" | "unavailable") => setAvatar(status), []);
-  const voice = useCoachVoice(fb.spoken, rec.setup.lang, rec.mock, avatar !== "pending", avatar === "ready");
+  const voice = useCoachVoice(fb.spoken, rec.setup.lang, rec.mock, avatar !== "pending");
   const tog = (k: "worked" | "improve" | "next") => setOpen((o) => (o === k ? null : k));
 
   useEffect(() => {
