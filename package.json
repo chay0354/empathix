@@ -1,0 +1,16 @@
+{
+  "name": "empathix",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Empathix demo — FRONT (Next.js) + BACK (Express). Run both with one command.",
+  "scripts": {
+    "setup": "npm install && npm --prefix BACK install && npm --prefix FRONT install",
+    "dev": "concurrently -n BACK,FRONT -c yellow,blue \"npm --prefix BACK run dev\" \"npm --prefix FRONT run dev\"",
+    "build": "npm --prefix BACK run compile && npm --prefix FRONT run build",
+    "start": "concurrently -n BACK,FRONT -c yellow,blue \"npm --prefix BACK start\" \"npm --prefix FRONT start\"",
+    "typecheck": "npm --prefix BACK run typecheck && npm --prefix FRONT run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "9.1.2"
+  }
+}

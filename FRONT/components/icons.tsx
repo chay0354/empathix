@@ -1,0 +1,24 @@
+import type { SVGProps } from "react";
+type P = SVGProps<SVGSVGElement>;
+const S = (p: P) => ({ viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true, ...p });
+
+export const Play = (p: P) => (<svg {...S(p)}><circle cx="12" cy="12" r="10" /><path d="M10 8.5v7l5.5-3.5z" fill="currentColor" /></svg>);
+export const Arrow = (p: P) => (<svg {...S(p)} className="ex-flip"><path d="M5 12h14M13 6l6 6-6 6" /></svg>);
+export const Retry = (p: P) => (<svg {...S(p)}><path d="M20 11a8 8 0 1 0-2.3 5.7" /><path d="M20 4v7h-7" /></svg>);
+export const Info = (p: P) => (<svg {...S(p)}><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg>);
+export const Pencil = (p: P) => (<svg {...S(p)}><path d="M4 20l4-1L19 8l-3-3L5 16z" /><path d="M14 7l3 3" /></svg>);
+export const Camera = (p: P) => (<svg {...S(p)} fill="currentColor" stroke="none"><rect x="2" y="6" width="14" height="12" rx="2.5" /><path d="M17 10.5l5-3v9l-5-3z" /></svg>);
+export const Mic = (p: P) => (<svg {...S(p)}><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>);
+export const MicOff = (p: P) => (<svg {...S(p)}><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M3 3l18 18" /></svg>);
+export const Phone = (p: P) => (<svg {...S(p)} fill="currentColor" stroke="none"><path d="M3 14.5c5-5 13-5 18 0l-2.2 2.3a1 1 0 0 1-1.3.1l-2.3-1.7a1 1 0 0 1-.4-.8v-2a11 11 0 0 0-5.6 0v2a1 1 0 0 1-.4.8l-2.3 1.7a1 1 0 0 1-1.3-.1z" /></svg>);
+export const Keyboard = (p: P) => (<svg {...S(p)}><rect x="2" y="6" width="20" height="12" rx="2.5" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" /></svg>);
+export const Wave = (p: P) => (<svg {...S(p)}><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4" /></svg>);
+export const Check = (p: P) => (<svg viewBox="0 0 28 28" aria-hidden {...p}><circle cx="14" cy="14" r="13" fill="currentColor" /><path d="M8.5 14.5l3.5 3.5 7.5-8" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>);
+export const Bulb = (p: P) => (<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden {...p}><path d="M10 18.5a7 7 0 1 1 8 0V21h-8z" fill="currentColor" fillOpacity=".18" /><path d="M11 24.5h6M14 2.5v1.5M4.5 6l1 1M23.5 6l-1 1" /></svg>);
+export const Target = (p: P) => (<svg viewBox="0 0 28 28" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden {...p}><circle cx="13" cy="15" r="10" /><circle cx="13" cy="15" r="5.5" /><circle cx="13" cy="15" r="1.5" fill="currentColor" /><path d="M13 15l9-9M19 4v3h3" /></svg>);
+export const Chevron = (p: P) => (<svg {...S(p)}><path d="M6 9l6 6 6-6" /></svg>);
+export const Doc = (p: P) => (<svg {...S(p)}><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h6" /></svg>);
+export const Lines = (p: P) => (<svg {...S(p)}><path d="M4 6h16M4 12h16M4 18h10" /></svg>);
+export const Headphones = (p: P) => (<svg {...S(p)}><path d="M4 15v-3a8 8 0 0 1 16 0v3" /><rect x="3" y="14" width="4" height="6" rx="1.5" /><rect x="17" y="14" width="4" height="6" rx="1.5" /></svg>);
+export const User = (p: P) => (<svg {...S(p)}><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></svg>);
+export const Printer = (p: P) => (<svg {...S(p)}><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" /><rect x="7" y="14" width="10" height="7" /></svg>);

@@ -1,0 +1,15 @@
+---
+description: Rules for the FRONT Next.js app
+globs: FRONT/**
+alwaysApply: false
+---
+# FRONT (Next.js)
+
+- Client components only where needed (`"use client"`). The flow lives in `components/App.tsx` as a state machine (`Stage`); add a screen by adding a stage and a component, not a new route, unless it must be linkable (like `/area`).
+- Styling: plain CSS in `app/globals.css`. Use the `ex-*` classes and token variables (`var(--blue-500)`, `var(--space-4)`, `var(--radius-md)`). No Tailwind, no inline colours, no gradients. One primary button (`ex-btn--primary`) per screen.
+- Directional layout: `margin-inline-*`, `padding-inline-*`, `inset-inline-*`, `text-align: start`. Arrows that mean "forward" use the `ex-flip` class.
+- Text: never hard-code UI strings. Add a key to `he`, `en` and `fr` in `lib/i18n.ts`; `en`/`fr` are typed against `he`, so TypeScript fails if a key is missing.
+- BACK calls: only via `api()` from `lib/api.ts`. Handle failures with a visible message and a "try again" action.
+- Voice call: `lib/call.ts`. `RealtimeCall` handles WebRTC, transcript ordering by item id, recording and voice level. Keep the `Call` interface shared with `MockCall`.
+- Storage: `lib/storage.ts` (browser only). Deleting a session must delete its recording too.
+- Accessibility: buttons have accessible names (`aria-label` on icon buttons), radio groups use `role="radiogroup"`/`role="radio"` + `aria-checked`, focus is visible.

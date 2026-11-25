@@ -1,0 +1,22 @@
+---
+description: Empathix project overview — always read AGENTS.md first
+alwaysApply: true
+---
+# Empathix
+
+Monorepo with two apps:
+- `FRONT/` — Next.js 15 + React 19 web app (port 3000). Screens, browser voice call (WebRTC), report, personal area.
+- `BACK/` — Node 20 + Express 4 API (port 4000). Holds the OpenAI key, builds the employee and coach prompts, returns feedback and coach voice.
+
+Before any change, read `AGENTS.md` at the repo root: it has the architecture, file map, run commands, env vars and the product rules.
+
+Run everything: `npm run setup` once, then `npm run dev` from the root.
+Before finishing a task: `npm run typecheck` and `npm run build` must pass.
+
+Hard rules:
+- The OpenAI key and all prompts stay in BACK. FRONT talks to BACK only through `FRONT/lib/api.ts`.
+- `lib/types.ts` (FRONT) and `src/lib/types.ts` (BACK) must stay identical.
+- Every UI string goes into `FRONT/lib/i18n.ts` in Hebrew, English and French.
+- Hebrew is RTL: use logical CSS properties and check the Hebrew view.
+- Coach feedback: no scores/labels/diagnoses, exact quotes only (keep `verifyQuote`), exactly three feedback rows.
+- Mock mode (empty `OPENAI_API_KEY`) must keep working so the UI can be reviewed without cost.

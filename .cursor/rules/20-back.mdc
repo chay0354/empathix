@@ -1,0 +1,17 @@
+---
+description: Rules for the BACK Express API
+globs: BACK/**
+alwaysApply: false
+---
+# BACK (Express)
+
+- One file per route in `src/routes/`, mounted in `src/index.ts` under `/api/...`. Keep handlers small; logic goes in `src/lib/`.
+- Validate every request body with `src/lib/validate.ts` before use. Clamp string lengths.
+- Every route must work in mock mode (`isMock()` when `OPENAI_API_KEY` is empty) and return sample data or a clean 404.
+- OpenAI errors: log the status and the first 500 characters server-side and return `502 { error: "<code>" }`. Never send OpenAI error bodies or keys to the browser.
+- Product behaviour lives in `src/lib/prompts.ts`:
+  - `employeeInstructions` — the simulated employee (manager opens, defensive start, gradual disclosure, never coaches, ends with `end_conversation`).
+  - `coachSystem` / `coachUser` / `FEEDBACK_SCHEMA` — the coach and its strict JSON output.
+  - `verifyQuote` — removes quotes that are not in the transcript. Do not remove or weaken it.
+- Models and settings come from env via `src/lib/env.ts`; never hard-code a key.
+- Add new allowed FRONT origins through `FRONT_ORIGIN`, not by opening CORS to `*`.
