@@ -23,8 +23,8 @@ export function faceFor(id: EmployeeId): string {
   return (process.env[ENV[id]] || DEFAULTS[id]).trim();
 }
 
-/** Claire, a ready-made female face, so she matches the coach voice. */
-const COACH = "5a83913c-411b-4afd-8432-b7d685e2aee6";
+/** Tina, a ready-made woman in a blazer, so the coach looks like an office conversation. */
+const COACH = "66d1f5af-9b9b-49e2-a97f-6f5f3d59a2d5";
 
 export function coachFace(): string {
   return (process.env.SIMLI_FACE_COACH || COACH).trim();
