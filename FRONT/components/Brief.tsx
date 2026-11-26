@@ -34,7 +34,7 @@ export function Brief({ setup, challenge, record, setRecord, mock, onBack, onSta
           <label className="ex-check"><input type="checkbox" checked={record} onChange={(e) => setRecord(e.target.checked)} />{t("recordingToggle")}</label>
         </div>
       )}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+      <div className="ex-brief__actions">
         <button className="ex-link" onClick={onBack}>{t("back")}</button>
         <button className="ex-btn ex-btn--primary" onClick={onStart} autoFocus><Play />{t("startCall")}</button>
       </div>

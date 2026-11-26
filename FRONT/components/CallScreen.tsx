@@ -123,18 +123,20 @@ export function CallScreen({ setup, challenge, mock, record, onEnded }: {
           <span className="ex-call__timer" aria-label="timer"><Wave />{fmt(elapsed)}</span>
         </div>
         <div className="ex-stage">
-          {!mock && <EmployeeVideo key={attempt} employee={setup.employee} enabled remoteTrack={remoteTrack} onReady={onFace} onMouth={onMouth} />}
-          {(mock || !faceOn) && (
-            <div className="ex-stage__face">
-              <Face id={setup.employee} name={emp.name} level={speaking === "employee" ? Math.max(level, 0.25) : 0} />
+          <div className="ex-stage__frame">
+            {!mock && <EmployeeVideo key={attempt} employee={setup.employee} enabled remoteTrack={remoteTrack} onReady={onFace} onMouth={onMouth} />}
+            {(mock || !faceOn) && (
+              <div className="ex-stage__face">
+                <Face id={setup.employee} name={emp.name} level={speaking === "employee" ? Math.max(level, 0.25) : 0} />
+              </div>
+            )}
+            <div className="ex-stage__status" aria-live="polite">
+              <span className={`ex-dot${speaking === "employee" ? " is-speaking" : live ? " is-live" : ""}`} />{status}
             </div>
-          )}
-          <div className="ex-stage__status" aria-live="polite">
-            <span className={`ex-dot${speaking === "employee" ? " is-speaking" : live ? " is-live" : ""}`} />{status}
+            {cam && (
+              <div className="ex-stage__self"><video ref={videoRef} autoPlay muted playsInline /></div>
+            )}
           </div>
-          {cam && (
-            <div className="ex-stage__self"><video ref={videoRef} autoPlay muted playsInline /></div>
-          )}
           <div className="ex-controls">
             <button className="ex-ctrl" aria-label={t("camera")} aria-pressed={!!cam} onClick={toggleCam}><Camera /></button>
             {!mock && (

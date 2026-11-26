@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Empathix",
   description: "Practise real management conversations. Get smart feedback."
 };
-export const viewport: Viewport = { themeColor: "#F7F3E8", width: "device-width", initialScale: 1 };
+export const viewport: Viewport = { themeColor: "#F7F3E8", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -37,7 +37,7 @@ export function PersonalArea() {
         view.kind === "report" ? <ReportView rec={view.rec} onClose={() => setView(null)} /> : <TranscriptView rec={view.rec} onClose={() => setView(null)} />
       ) : (
         <section className="ex-panel ex-area">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div className="ex-area__head">
             <h1 className="ex-title">{t("areaTitle")}</h1>
             <Link className="ex-btn ex-btn--primary" href="/"><Play />{t("newPractice")}</Link>
           </div>

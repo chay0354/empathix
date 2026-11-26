@@ -13,7 +13,7 @@ export function TopBar({ showLangs = false, showArea = true, center }: { showLan
         <Logo />
       </Link>
       {center}
-      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+      <div className="ex-top__tools">
         {showArea && (
           <Link className="ex-link" href="/area"><User />{t("myArea")}</Link>
         )}

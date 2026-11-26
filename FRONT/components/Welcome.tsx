@@ -12,7 +12,7 @@ export function Welcome({ onStart }: { onStart: () => void }) {
         <h1 className="ex-display">{t("welcomeTitle")}</h1>
         <p className="ex-lead">{t("welcomeSubtitle")}</p>
         <div style={{ marginTop: 40 }}>
-          <button className="ex-btn ex-btn--primary" style={{ minWidth: 300 }} onClick={onStart} autoFocus>
+          <button className="ex-btn ex-btn--primary ex-welcome__start" onClick={onStart} autoFocus>
             <Play />{t("start")}
           </button>
         </div>
