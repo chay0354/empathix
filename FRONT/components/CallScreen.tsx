@@ -39,11 +39,8 @@ export function CallScreen({ setup, challenge, mock, record, onEnded }: {
   const [notice, setNotice] = useState<string | null>(null);
   const [cam, setCam] = useState<MediaStream | null>(null);
   const [remoteTrack, setRemoteTrack] = useState<MediaStreamTrack | null>(null);
-  const [faceOn, setFaceOn] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const onFace = useCallback((on: boolean) => {
-    if (on) setFaceOn(true);
-  }, []);
+  const onFace = useCallback(() => {}, []);
   const onMouth = useCallback((voice: MediaStream | null) => {
     if (voice) callRef.current?.playFace(voice);
     else callRef.current?.markFaceAudible();
@@ -125,7 +122,7 @@ export function CallScreen({ setup, challenge, mock, record, onEnded }: {
         </div>
         <div className="ex-stage">
           {!mock && <EmployeeVideo key={attempt} employee={setup.employee} enabled remoteTrack={remoteTrack} onReady={onFace} onMouth={onMouth} />}
-          {!faceOn && (
+          {mock && (
             <div className="ex-stage__face">
               <Face id={setup.employee} name={emp.name} level={speaking === "employee" ? Math.max(level, 0.25) : 0} />
             </div>

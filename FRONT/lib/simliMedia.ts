@@ -3,12 +3,12 @@ import type { LogLevel as LogLevelT, SimliClient } from "simli-client";
 /** 100ms at 16 kHz. Shorter than Simli's default, so the mouth stays with the voice. */
 const MOUTH_SAMPLES = 1600;
 
-export async function createSimli(token: string, video: HTMLVideoElement, audio: HTMLAudioElement, ice: RTCIceServer[]) {
+export async function createSimli(token: string, video: HTMLVideoElement, audio: HTMLAudioElement, _ice: RTCIceServer[]) {
   const { SimliClient, LogLevel } = await import("simli-client");
   const quiet = LogLevel.ERROR as LogLevelT;
-  return ice.length
-    ? new SimliClient(token, video, audio, ice, quiet, "p2p", "websockets", "wss://api.simli.ai", MOUTH_SAMPLES)
-    : new SimliClient(token, video, audio, null, quiet, "livekit", "websockets", "wss://api.simli.ai", MOUTH_SAMPLES);
+  // LiveKit is relayed by Simli. A direct peer connection often never paints,
+  // and the call then stays on the still photo while the voice keeps going.
+  return new SimliClient(token, video, audio, null, quiet, "livekit", "websockets", "wss://api.simli.ai", MOUTH_SAMPLES);
 }
 
 /**
@@ -86,7 +86,7 @@ export function followVideo(el: HTMLVideoElement, onLive: (live: boolean) => voi
     const stream = el.srcObject;
     const live = stream instanceof MediaStream
       && stream.getVideoTracks().some((t) => t.readyState === "live")
-      && el.readyState >= 2;
+      && (el.videoWidth > 0 || el.readyState >= 2);
     if (live) {
       goneAt = 0;
       if (last !== true) { last = true; onLive(true); }
@@ -114,7 +114,12 @@ export function holdFace(run: (stopped: () => boolean) => Promise<(() => Promise
     if (stopped) return;
     const stop = await run(() => stopped);
     await untilStop;
-    if (typeof stop === "function") await stop().catch(() => {});
+    if (typeof stop === "function") {
+      await Promise.race([
+        stop().catch(() => {}),
+        new Promise((resolve) => setTimeout(resolve, 2000))
+      ]);
+    }
   }).catch(() => {});
   return () => {
     stopped = true;

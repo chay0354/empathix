@@ -103,7 +103,7 @@ export function CoachVideo({ track, onStatus, onLag }: {
 
   return (
     <>
-      <video ref={videoRef} className="ex-coach__video" autoPlay playsInline muted style={{ opacity: ready ? 1 : 0 }} />
+      <video ref={videoRef} className="ex-coach__video" autoPlay playsInline muted />
       <audio ref={audioRef} autoPlay playsInline muted style={{ display: "none" }} />
     </>
   );

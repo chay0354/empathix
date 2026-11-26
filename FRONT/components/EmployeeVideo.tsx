@@ -103,7 +103,7 @@ export function EmployeeVideo({ employee, enabled, remoteTrack, onReady, onMouth
 
   return (
     <>
-      <video ref={videoRef} className="ex-stage__avatar" autoPlay playsInline muted style={{ opacity: ready ? 1 : 0 }} />
+      <video ref={videoRef} className="ex-stage__avatar" autoPlay playsInline muted />
       <audio ref={audioRef} autoPlay playsInline style={{ position: "absolute", width: 1, height: 1, opacity: 0 }} />
     </>
   );
