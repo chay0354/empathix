@@ -41,12 +41,21 @@ export function CallScreen({ setup, challenge, mock, record, onEnded }: {
   const [remoteTrack, setRemoteTrack] = useState<MediaStreamTrack | null>(null);
   const [faceOn, setFaceOn] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const delaySet = useRef(false);
+  const lagLocked = useRef(false);
   const onFace = useCallback((on: boolean) => {
     setFaceOn(on);
-    // A starting guess for the face's lag; the measured value replaces it after the first phrase.
-    callRef.current?.setVoiceDelay(on ? 0.47 : 0);
+    // Dropping the delay back to zero when the picture flickers stretches the words.
+    if (!on || delaySet.current) return;
+    delaySet.current = true;
+    callRef.current?.setVoiceDelay(0.47);
   }, []);
-  const onLag = useCallback((s: number) => callRef.current?.setVoiceDelay(s), []);
+  const onLag = useCallback((s: number) => {
+    // One stable reading for the whole call. Retuning between sentences changes the pace.
+    if (lagLocked.current) return;
+    lagLocked.current = true;
+    callRef.current?.setVoiceDelay(s);
+  }, []);
   const [attempt, setAttempt] = useState(0);
 
   const end = useCallback(async (by: EndedBy) => {

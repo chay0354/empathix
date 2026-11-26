@@ -1,6 +1,6 @@
 "use client";
 import { api } from "@/lib/api";
-import { createSimli, ignoreClosingSocket, keepSilent, measureLag } from "@/lib/simliMedia";
+import { createSimli, followVideo, ignoreClosingSocket, keepSilent, measureLag } from "@/lib/simliMedia";
 import { useEffect, useRef, useState } from "react";
 import type { SimliClient } from "simli-client";
 
@@ -29,6 +29,11 @@ export function CoachVideo({ track, onStatus, onLag }: {
     keepSilent(audio, false, grab);
     let stopped = false;
     let client: SimliClient | null = null;
+    const stopWatch = followVideo(video, (live) => {
+      if (stopped) return;
+      setReady(live);
+      onStatus(live ? "ready" : "unavailable");
+    });
 
     (async () => {
       try {
@@ -46,12 +51,7 @@ export function CoachVideo({ track, onStatus, onLag }: {
         if (stopped) return;
         client.on("start", () => {
           if (stopped) return;
-          setReady(true);
-          onStatus("ready");
           void video.play().catch(() => {});
-          const stream = video.srcObject;
-          const track = stream instanceof MediaStream ? stream.getVideoTracks()[0] : undefined;
-          if (track) track.onended = () => { if (!stopped) { setReady(false); onStatus("unavailable"); } };
         });
         client.on("error", (detail: string) => console.warn("[simli]", detail));
         clientRef.current = client;
@@ -67,6 +67,7 @@ export function CoachVideo({ track, onStatus, onLag }: {
 
     return () => {
       stopped = true;
+      stopWatch();
       piped.current = false;
       setReady(false);
       setFaceAudio(null);

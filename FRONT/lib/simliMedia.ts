@@ -60,6 +60,8 @@ export function measureLag(voice: MediaStreamTrack, face: MediaStream, onLag: (s
       if (match !== undefined) {
         lags.push((now - match) / 1000);
         if (lags.length > 5) lags.shift();
+        // One phrase is a noisy guess. Wait for three, then the median stays put.
+        if (lags.length < 3) return;
         const sorted = [...lags].sort((a, b) => a - b);
         onLag(sorted[Math.floor(sorted.length / 2)]);
       }
@@ -70,6 +72,32 @@ export function measureLag(voice: MediaStreamTrack, face: MediaStream, onLag: (s
     clearInterval(timer);
     void ctx.close().catch(() => {});
   };
+}
+
+/**
+ * Simli replaces the video track when the office background arrives. Treating that
+ * swap as "the face ended" hides the live person and leaves the still photo on top.
+ * Report live while a frame is actually showing, and only report gone after it stays gone.
+ */
+export function followVideo(el: HTMLVideoElement, onLive: (live: boolean) => void) {
+  let last: boolean | null = null;
+  let goneAt = 0;
+  const tick = () => {
+    const stream = el.srcObject;
+    const live = stream instanceof MediaStream
+      && stream.getVideoTracks().some((t) => t.readyState === "live")
+      && el.readyState >= 2;
+    if (live) {
+      goneAt = 0;
+      if (last !== true) { last = true; onLive(true); }
+      return;
+    }
+    if (last !== true) return;
+    if (!goneAt) goneAt = performance.now();
+    if (performance.now() - goneAt >= 800) { last = false; goneAt = 0; onLive(false); }
+  };
+  const timer = setInterval(tick, 200);
+  return () => clearInterval(timer);
 }
 
 /** Simli's client throws if a mouth chunk arrives while its socket is closing. */

@@ -1,6 +1,6 @@
 "use client";
 import { api } from "@/lib/api";
-import { createSimli, ignoreClosingSocket, keepSilent, measureLag } from "@/lib/simliMedia";
+import { createSimli, followVideo, ignoreClosingSocket, keepSilent, measureLag } from "@/lib/simliMedia";
 import type { EmployeeId } from "@/lib/types";
 import { useEffect, useRef, useState } from "react";
 import type { SimliClient } from "simli-client";
@@ -36,6 +36,11 @@ export function EmployeeVideo({ employee, enabled, remoteTrack, onReady, onLag }
     keepSilent(audio, false, grab);
     let stopped = false;
     let client: SimliClient | null = null;
+    const stopWatch = followVideo(video, (live) => {
+      if (stopped) return;
+      setReady(live);
+      onReady(live);
+    });
 
     (async () => {
       try {
@@ -52,12 +57,7 @@ export function EmployeeVideo({ employee, enabled, remoteTrack, onReady, onLag }
         if (stopped) return;
         client.on("start", () => {
           if (stopped) return;
-          setReady(true);
-          onReady(true);
           void video.play().catch(() => {});
-          const stream = video.srcObject;
-          const track = stream instanceof MediaStream ? stream.getVideoTracks()[0] : undefined;
-          if (track) track.onended = () => { if (!stopped) { setReady(false); onReady(false); } };
         });
         client.on("error", (detail: string) => console.warn("[simli]", detail));
         clientRef.current = client;
@@ -72,6 +72,7 @@ export function EmployeeVideo({ employee, enabled, remoteTrack, onReady, onLag }
 
     return () => {
       stopped = true;
+      stopWatch();
       piped.current = false;
       setReady(false);
       setFaceAudio(null);
