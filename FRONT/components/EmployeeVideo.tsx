@@ -1,6 +1,6 @@
 "use client";
 import { api } from "@/lib/api";
-import { createSimli, followVideo, ignoreClosingSocket, keepSilent, measureLag } from "@/lib/simliMedia";
+import { createSimli, followVideo, holdFace, ignoreClosingSocket, keepSilent } from "@/lib/simliMedia";
 import type { EmployeeId } from "@/lib/types";
 import { useEffect, useRef, useState } from "react";
 import type { SimliClient } from "simli-client";
@@ -8,21 +8,20 @@ import type { SimliClient } from "simli-client";
 /**
  * Live Simli face for the employee. The voice model stays on OpenAI;
  * its audio is forwarded here so the mouth matches what the manager hears.
- * `onLag` reports how far the face runs behind, so the call can hold the voice back to match.
+ * The call holds that voice by a fixed delay, so a new reading cannot change the pace mid-sentence.
  */
-export function EmployeeVideo({ employee, enabled, remoteTrack, onReady, onLag }: {
+export function EmployeeVideo({ employee, enabled, remoteTrack, onReady }: {
   employee: EmployeeId;
   enabled: boolean;
   remoteTrack: MediaStreamTrack | null;
   onReady: (ready: boolean) => void;
-  onLag: (seconds: number) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const clientRef = useRef<SimliClient | null>(null);
   const piped = useRef(false);
+  const shown = useRef(false);
   const [ready, setReady] = useState(false);
-  const [faceAudio, setFaceAudio] = useState<MediaStream | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -31,32 +30,39 @@ export function EmployeeVideo({ employee, enabled, remoteTrack, onReady, onLag }
     if (!video || !audio) return;
     // Simli plays the voice back. The call already plays it, and Simli turns its
     // own speaker on again after connecting, which is the second copy.
-    const grab = (s: MediaStream) => { if (s.getAudioTracks().length) setFaceAudio(new MediaStream(s.getAudioTracks())); };
-    keepSilent(video, true, grab);
-    keepSilent(audio, false, grab);
+    keepSilent(video, true);
+    keepSilent(audio, false);
     let stopped = false;
-    let client: SimliClient | null = null;
     const stopWatch = followVideo(video, (live) => {
       if (stopped) return;
-      setReady(live);
-      onReady(live);
+      if (live) {
+        shown.current = true;
+        setReady(true);
+        onReady(true);
+        if (video.paused) void video.play().catch(() => {});
+        return;
+      }
+      // A track swap used to drop the live face and leave the still photo on top.
+      if (shown.current) return;
+      setReady(false);
+      onReady(false);
     });
 
-    (async () => {
+    const release = holdFace(async (isStopped) => {
       try {
         const res = await api("/api/simli/session", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ setup: { lang: "he", employee, employeeText: "", situation: "performance", situationText: "" } })
         });
-        if (!res.ok || stopped) return;
+        if (!res.ok || isStopped()) return;
         const data = (await res.json()) as { enabled?: boolean; token?: string; iceServers?: RTCIceServer[] };
-        if (!data.enabled || !data.token || stopped) return;
+        if (!data.enabled || !data.token || isStopped()) return;
         const ice = Array.isArray(data.iceServers) ? data.iceServers : [];
-        client = await createSimli(data.token, video, audio, ice);
-        if (stopped) return;
+        const client = await createSimli(data.token, video, audio, ice);
+        if (isStopped()) return async () => { await client.stop().catch(() => {}); };
         client.on("start", () => {
-          if (stopped) return;
+          if (isStopped()) return;
           void video.play().catch(() => {});
         });
         client.on("error", (detail: string) => console.warn("[simli]", detail));
@@ -65,21 +71,20 @@ export function EmployeeVideo({ employee, enabled, remoteTrack, onReady, onLag }
         // The mouth keeps sending audio for a moment after the call ends.
         // Simli throws once the socket is closing; swallow that so it does not cover the screen.
         ignoreClosingSocket(client);
+        return async () => { await client.stop().catch(() => {}); };
       } catch (e) {
-        if (!stopped) console.warn("[simli] unavailable", e);
+        if (!isStopped()) console.warn("[simli] unavailable", e);
       }
-    })();
+    });
 
     return () => {
       stopped = true;
       stopWatch();
+      release();
       piped.current = false;
       setReady(false);
-      setFaceAudio(null);
-      onReady(false);
-      const current = client ?? clientRef.current;
       clientRef.current = null;
-      void current?.stop().catch(() => {});
+      if (!shown.current) onReady(false);
     };
   }, [employee, enabled, onReady]);
 
@@ -93,11 +98,6 @@ export function EmployeeVideo({ employee, enabled, remoteTrack, onReady, onLag }
       console.warn("[simli] audio forward failed", e);
     }
   }, [ready, remoteTrack]);
-
-  useEffect(() => {
-    if (!ready || !remoteTrack || !faceAudio) return;
-    return measureLag(remoteTrack, faceAudio, onLag);
-  }, [ready, remoteTrack, faceAudio, onLag]);
 
   return (
     <>

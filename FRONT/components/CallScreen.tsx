@@ -41,20 +41,9 @@ export function CallScreen({ setup, challenge, mock, record, onEnded }: {
   const [remoteTrack, setRemoteTrack] = useState<MediaStreamTrack | null>(null);
   const [faceOn, setFaceOn] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const delaySet = useRef(false);
-  const lagLocked = useRef(false);
   const onFace = useCallback((on: boolean) => {
-    setFaceOn(on);
-    // Dropping the delay back to zero when the picture flickers stretches the words.
-    if (!on || delaySet.current) return;
-    delaySet.current = true;
-    callRef.current?.setVoiceDelay(0.47);
-  }, []);
-  const onLag = useCallback((s: number) => {
-    // One stable reading for the whole call. Retuning between sentences changes the pace.
-    if (lagLocked.current) return;
-    lagLocked.current = true;
-    callRef.current?.setVoiceDelay(s);
+    // The voice delay is fixed. Turning it on and off with the picture changes the pace of the words.
+    if (on) setFaceOn(true);
   }, []);
   const [attempt, setAttempt] = useState(0);
 
@@ -132,7 +121,7 @@ export function CallScreen({ setup, challenge, mock, record, onEnded }: {
           <span className="ex-call__timer" aria-label="timer"><Wave />{fmt(elapsed)}</span>
         </div>
         <div className="ex-stage">
-          {!mock && <EmployeeVideo key={attempt} employee={setup.employee} enabled remoteTrack={remoteTrack} onReady={onFace} onLag={onLag} />}
+          {!mock && <EmployeeVideo key={attempt} employee={setup.employee} enabled remoteTrack={remoteTrack} onReady={onFace} />}
           {!faceOn && (
             <div className="ex-stage__face">
               <Face id={setup.employee} name={emp.name} level={speaking === "employee" ? Math.max(level, 0.25) : 0} />

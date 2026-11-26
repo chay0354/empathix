@@ -39,7 +39,8 @@ export class RealtimeCall implements Call {
   private mic?: MediaStream;
   private audioEl?: HTMLAudioElement;
   private delay?: DelayNode;
-  private voiceDelay = 0;
+  // The face renders this far behind the original voice. Measured against the live office frame.
+  private voiceDelay = 0.63;
   private pendingDelay: number | null = null;
   private micWanted = true;
   private employeeSpeaking = false;

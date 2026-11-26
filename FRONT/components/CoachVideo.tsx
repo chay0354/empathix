@@ -1,6 +1,6 @@
 "use client";
 import { api } from "@/lib/api";
-import { createSimli, followVideo, ignoreClosingSocket, keepSilent, measureLag } from "@/lib/simliMedia";
+import { createSimli, followVideo, holdFace, ignoreClosingSocket, keepSilent, measureLag } from "@/lib/simliMedia";
 import { useEffect, useRef, useState } from "react";
 import type { SimliClient } from "simli-client";
 
@@ -28,52 +28,60 @@ export function CoachVideo({ track, onStatus, onLag }: {
     keepSilent(video, true, grab);
     keepSilent(audio, false, grab);
     let stopped = false;
-    let client: SimliClient | null = null;
+    const shown = { current: false };
     const stopWatch = followVideo(video, (live) => {
       if (stopped) return;
-      setReady(live);
-      onStatus(live ? "ready" : "unavailable");
+      if (live) {
+        shown.current = true;
+        setReady(true);
+        onStatus("ready");
+        if (video.paused) void video.play().catch(() => {});
+        return;
+      }
+      if (shown.current) return;
+      setReady(false);
+      onStatus("unavailable");
     });
 
-    (async () => {
+    const release = holdFace(async (isStopped) => {
       try {
         const res = await api("/api/simli/session", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ who: "coach" })
         });
-        if (stopped) return;
-        if (!res.ok) return onStatus("unavailable");
+        if (isStopped()) return;
+        if (!res.ok) { onStatus("unavailable"); return; }
         const data = (await res.json()) as { enabled?: boolean; token?: string; iceServers?: RTCIceServer[] };
-        if (!data.enabled || !data.token) return onStatus("unavailable");
+        if (!data.enabled || !data.token) { onStatus("unavailable"); return; }
         const ice = Array.isArray(data.iceServers) ? data.iceServers : [];
-        client = await createSimli(data.token, video, audio, ice);
-        if (stopped) return;
+        const client = await createSimli(data.token, video, audio, ice);
+        if (isStopped()) return async () => { await client.stop().catch(() => {}); };
         client.on("start", () => {
-          if (stopped) return;
+          if (isStopped()) return;
           void video.play().catch(() => {});
         });
         client.on("error", (detail: string) => console.warn("[simli]", detail));
         clientRef.current = client;
         await client.start();
         ignoreClosingSocket(client);
+        return async () => { await client.stop().catch(() => {}); };
       } catch (e) {
-        if (!stopped) {
+        if (!isStopped()) {
           console.warn("[simli] coach unavailable", e);
           onStatus("unavailable");
         }
       }
-    })();
+    });
 
     return () => {
       stopped = true;
       stopWatch();
+      release();
       piped.current = false;
       setReady(false);
       setFaceAudio(null);
-      const current = client ?? clientRef.current;
       clientRef.current = null;
-      void current?.stop().catch(() => {});
     };
   }, [onStatus]);
 

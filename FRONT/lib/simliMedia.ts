@@ -100,6 +100,28 @@ export function followVideo(el: HTMLVideoElement, onLive: (live: boolean) => voi
   return () => clearInterval(timer);
 }
 
+let seat: Promise<void> = Promise.resolve();
+
+/**
+ * One face at a time. A new call waits until the previous session has actually closed,
+ * otherwise Simli keeps the old one and the new screen stays on the still photo.
+ */
+export function holdFace(run: (stopped: () => boolean) => Promise<(() => Promise<void>) | void>): () => void {
+  let stopped = false;
+  let open = () => {};
+  const untilStop = new Promise<void>((resolve) => { open = resolve; });
+  seat = seat.then(async () => {
+    if (stopped) return;
+    const stop = await run(() => stopped);
+    await untilStop;
+    if (typeof stop === "function") await stop().catch(() => {});
+  }).catch(() => {});
+  return () => {
+    stopped = true;
+    open();
+  };
+}
+
 /** Simli's client throws if a mouth chunk arrives while its socket is closing. */
 export function ignoreClosingSocket(client: SimliClient) {
   const sig = (client as unknown as {
