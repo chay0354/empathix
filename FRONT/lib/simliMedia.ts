@@ -100,6 +100,62 @@ export function followVideo(el: HTMLVideoElement, onLive: (live: boolean) => voi
   return () => clearInterval(timer);
 }
 
+const open = new Set<SimliClient>();
+let closesOnLeave = false;
+
+/**
+ * The Simli plan allows one live face at a time. A refresh or closed tab must hand the
+ * slot back right away, otherwise the next call is refused until Simli times the old one out.
+ */
+function closeOnLeave() {
+  if (closesOnLeave || typeof window === "undefined") return;
+  closesOnLeave = true;
+  window.addEventListener("pagehide", () => {
+    open.forEach((c) => { void c.stop().catch(() => {}); });
+    open.clear();
+  });
+}
+
+/**
+ * Connect a face, waiting for the account's single slot if another session still holds it.
+ * Returns null if it never connects, so the caller keeps the still portrait instead of a black frame.
+ */
+export async function startFace(
+  getToken: () => Promise<{ token: string; ice: RTCIceServer[] } | null>,
+  video: HTMLVideoElement,
+  audio: HTMLAudioElement,
+  isStopped: () => boolean
+): Promise<SimliClient | null> {
+  closeOnLeave();
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const got = await getToken();
+    if (!got || isStopped()) return null;
+    const client = await createSimli(got.token, video, audio, got.ice);
+    if (isStopped()) { void client.stop().catch(() => {}); return null; }
+    client.on("start", () => { if (!isStopped()) void video.play().catch(() => {}); });
+    client.on("error", (detail: string) => console.warn("[simli]", detail));
+    open.add(client);
+    try {
+      await client.start();
+      ignoreClosingSocket(client);
+      return client;
+    } catch (e) {
+      open.delete(client);
+      void client.stop().catch(() => {});
+      if (isStopped()) return null;
+      const busy = /RATE/i.test(String(e));
+      if (!busy && attempt >= 1) { console.warn("[simli] unavailable", e); return null; }
+      await new Promise((r) => setTimeout(r, busy ? 3000 : 1500));
+    }
+  }
+  return null;
+}
+
+export async function stopFace(client: SimliClient) {
+  open.delete(client);
+  await client.stop().catch(() => {});
+}
+
 let seat: Promise<void> = Promise.resolve();
 
 /**

@@ -40,7 +40,9 @@ export function CallScreen({ setup, challenge, mock, record, onEnded }: {
   const [cam, setCam] = useState<MediaStream | null>(null);
   const [remoteTrack, setRemoteTrack] = useState<MediaStreamTrack | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const onFace = useCallback(() => {}, []);
+  // The portrait covers the stage only until the live face paints, so it is never a black frame.
+  const [faceOn, setFaceOn] = useState(false);
+  const onFace = useCallback((on: boolean) => { if (on) setFaceOn(true); }, []);
   const onMouth = useCallback((voice: MediaStream | null) => {
     if (voice) callRef.current?.playFace(voice);
     else callRef.current?.markFaceAudible();
@@ -122,7 +124,7 @@ export function CallScreen({ setup, challenge, mock, record, onEnded }: {
         </div>
         <div className="ex-stage">
           {!mock && <EmployeeVideo key={attempt} employee={setup.employee} enabled remoteTrack={remoteTrack} onReady={onFace} onMouth={onMouth} />}
-          {mock && (
+          {(mock || !faceOn) && (
             <div className="ex-stage__face">
               <Face id={setup.employee} name={emp.name} level={speaking === "employee" ? Math.max(level, 0.25) : 0} />
             </div>
