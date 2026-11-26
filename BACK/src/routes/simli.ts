@@ -26,11 +26,31 @@ async function iceServers(key: string): Promise<IceServer[]> {
   }
 }
 
-/** The call stage is 16:9. The coach card is a portrait, so her frame is 9:16. */
+/** Office backdrops uploaded on this account. Override with SIMLI_BG_CALL and SIMLI_BG_COACH. */
+const OFFICE = {
+  call: process.env.SIMLI_BG_CALL?.trim() || "f3a7f4a1-98bf-41dd-a0cc-5333f98cbfdc",
+  coach: process.env.SIMLI_BG_COACH?.trim() || "2a50ed6b-4180-48cb-8651-021ce4b51804"
+};
+
+/**
+ * The largest 16:9 and 9:16 this account can stream (1366 on the long side),
+ * and the avatar's own waist-up camera instead of a tight face zoom.
+ * Pulling back a little leaves shoulders, hands and the office in frame.
+ */
 const FRAME = {
-  employee: { streaming_width: 1280, streaming_height: 720, avatar_position_x: 0.5, avatar_position_y: 0.86, camera: { zoom: 1.28 } },
-  coach: { streaming_width: 720, streaming_height: 1280, avatar_position_x: 0.5, avatar_position_y: 0.78, camera: { zoom: 1.4 } }
-} as const;
+  employee: {
+    streaming_width: 1366, streaming_height: 768,
+    avatar_position_x: 0.5, avatar_position_y: 0.7,
+    camera: { zoom: 1, pos_z_off: 0.15 },
+    background_id: OFFICE.call
+  },
+  coach: {
+    streaming_width: 768, streaming_height: 1366,
+    avatar_position_x: 0.5, avatar_position_y: 0.62,
+    camera: { zoom: 1, pos_z_off: 0.1 },
+    background_id: OFFICE.coach
+  }
+};
 
 /**
  * POST /api/simli/session { setup } or { who: "coach" }
