@@ -1,6 +1,6 @@
 "use client";
 import { api } from "@/lib/api";
-import { createSimli, followVideo, holdFace, ignoreClosingSocket, keepSilent } from "@/lib/simliMedia";
+import { createSimli, followVideo, hearMouth, holdFace, ignoreClosingSocket, keepSilent } from "@/lib/simliMedia";
 import type { EmployeeId } from "@/lib/types";
 import { useEffect, useRef, useState } from "react";
 import type { SimliClient } from "simli-client";
@@ -10,11 +10,13 @@ import type { SimliClient } from "simli-client";
  * its audio is forwarded here so the mouth matches what the manager hears.
  * The call holds that voice by a fixed delay, so a new reading cannot change the pace mid-sentence.
  */
-export function EmployeeVideo({ employee, enabled, remoteTrack, onReady }: {
+export function EmployeeVideo({ employee, enabled, remoteTrack, onReady, onMouth }: {
   employee: EmployeeId;
   enabled: boolean;
   remoteTrack: MediaStreamTrack | null;
   onReady: (ready: boolean) => void;
+  /** null: the face element itself is playing. A stream: play this, the element was blocked. */
+  onMouth: (voice: MediaStream | null) => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -31,7 +33,7 @@ export function EmployeeVideo({ employee, enabled, remoteTrack, onReady }: {
     // Simli plays the voice back. The call already plays it, and Simli turns its
     // own speaker on again after connecting, which is the second copy.
     keepSilent(video, true);
-    keepSilent(audio, false);
+    hearMouth(audio, () => onMouth(null), (voice) => onMouth(voice));
     let stopped = false;
     const stopWatch = followVideo(video, (live) => {
       if (stopped) return;
@@ -86,7 +88,7 @@ export function EmployeeVideo({ employee, enabled, remoteTrack, onReady }: {
       clientRef.current = null;
       if (!shown.current) onReady(false);
     };
-  }, [employee, enabled, onReady]);
+  }, [employee, enabled, onReady, onMouth]);
 
   useEffect(() => {
     const client = clientRef.current;
@@ -102,7 +104,7 @@ export function EmployeeVideo({ employee, enabled, remoteTrack, onReady }: {
   return (
     <>
       <video ref={videoRef} className="ex-stage__avatar" autoPlay playsInline muted style={{ opacity: ready ? 1 : 0 }} />
-      <audio ref={audioRef} autoPlay playsInline muted style={{ display: "none" }} />
+      <audio ref={audioRef} autoPlay playsInline style={{ position: "absolute", width: 1, height: 1, opacity: 0 }} />
     </>
   );
 }

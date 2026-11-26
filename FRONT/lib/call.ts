@@ -23,6 +23,10 @@ export interface Call {
   setMicEnabled(on: boolean): void;
   /** Hold the employee's voice back by this many seconds, so it lands with the avatar's mouth. */
   setVoiceDelay(seconds: number): void;
+  /** Play the avatar's own audio, the stream that moves the mouth. */
+  playFace(stream: MediaStream): void;
+  /** The avatar's audio element is already playing, so the delayed copy must stay silent. */
+  markFaceAudible(): void;
   /** Stops everything; resolves with the mixed recording if recording was on. */
   stop(): Promise<Blob | null>;
   readonly voice: boolean;
@@ -39,7 +43,12 @@ export class RealtimeCall implements Call {
   private mic?: MediaStream;
   private audioEl?: HTMLAudioElement;
   private delay?: DelayNode;
-  // The face renders this far behind the original voice. Measured against the live office frame.
+  private faceStream?: MediaStream;
+  private faceSrc?: MediaStreamAudioSourceNode;
+  private faceHeard = false;
+  private delayToSpeakers = false;
+  private faceWait?: ReturnType<typeof setTimeout>;
+  // Used only to keep the mic closed until the face finishes the sentence.
   private voiceDelay = 0.63;
   private pendingDelay: number | null = null;
   private micWanted = true;
@@ -122,12 +131,14 @@ export class RealtimeCall implements Call {
       const track = stream.getAudioTracks()[0];
       this.audioEl!.srcObject = stream;
       if (track) this.ev.onRemoteAudio?.(track);
-      // The original voice is what the manager hears, played through a delay line so
-      // it can wait for the avatar's mouth. The avatar's own speaker stays muted.
+      // The mouth moves with the avatar's own audio. Hear that, not a second delayed copy.
+      // If the face stream never arrives, fall back to the original after a short wait.
       const src = this.ctx!.createMediaStreamSource(stream);
       this.delay = this.ctx!.createDelay(2);
       this.delay.delayTime.value = this.voiceDelay;
-      src.connect(this.delay).connect(this.ctx!.destination);
+      src.connect(this.delay);
+      this.faceWait = setTimeout(() => this.useDelayedVoice(), 2500);
+      this.attachFace();
       void this.ctx!.resume().catch(() => {});
       src.connect(this.dest!);
       const an = this.ctx!.createAnalyser();
@@ -289,6 +300,42 @@ export class RealtimeCall implements Call {
     this.mic?.getAudioTracks().forEach((t) => (t.enabled = on));
   }
 
+  playFace(stream: MediaStream) {
+    if (this.ended || !stream.getAudioTracks().length) return;
+    if (this.faceHeard && this.faceStream?.getAudioTracks()[0]?.readyState === "live") return;
+    this.faceStream = stream;
+    this.attachFace();
+  }
+
+  markFaceAudible() {
+    if (this.ended) return;
+    this.faceHeard = true;
+    if (this.faceWait) clearTimeout(this.faceWait);
+    this.silenceDelay();
+  }
+
+  private attachFace() {
+    if (this.faceSrc || !this.faceStream || !this.ctx || this.ended) return;
+    this.faceHeard = true;
+    if (this.faceWait) clearTimeout(this.faceWait);
+    this.silenceDelay();
+    this.faceSrc = this.ctx.createMediaStreamSource(this.faceStream);
+    this.faceSrc.connect(this.ctx.destination);
+    void this.ctx.resume().catch(() => {});
+  }
+
+  private silenceDelay() {
+    if (!this.delayToSpeakers || !this.delay) return;
+    try { this.delay.disconnect(); } catch { /* already disconnected */ }
+    this.delayToSpeakers = false;
+  }
+
+  private useDelayedVoice() {
+    if (this.faceHeard || this.delayToSpeakers || !this.delay || !this.ctx || this.ended) return;
+    this.delay.connect(this.ctx.destination);
+    this.delayToSpeakers = true;
+  }
+
   setVoiceDelay(seconds: number) {
     const s = Math.min(1.5, Math.max(0, seconds));
     if (Math.abs(s - this.voiceDelay) < 0.03) return;
@@ -305,6 +352,7 @@ export class RealtimeCall implements Call {
 
   async stop(): Promise<Blob | null> {
     this.ended = true;
+    if (this.faceWait) clearTimeout(this.faceWait);
     if (this.releaseMic) clearTimeout(this.releaseMic);
     cancelAnimationFrame(this.raf);
     const blob = await new Promise<Blob | null>((resolve) => {
@@ -371,6 +419,8 @@ export class MockCall implements Call {
   sendSystemNote() {}
   setMicEnabled() {}
   setVoiceDelay() {}
+  playFace() {}
+  markFaceAudible() {}
   async stop() {
     this.ended = true;
     clearTimeout(this.timer);

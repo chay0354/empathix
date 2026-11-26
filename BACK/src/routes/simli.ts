@@ -33,15 +33,14 @@ const OFFICE = {
 };
 
 /**
- * The largest 16:9 and 9:16 this account can stream (1366 on the long side),
- * and the avatar's own waist-up camera instead of a tight face zoom.
- * Pulling back a little leaves shoulders, hands and the office in frame.
+ * The largest 16:9 and 9:16 this account can stream (1366 on the long side).
+ * The employee is framed head-and-shoulders so the mouth is large enough to read as speech.
  */
 const FRAME = {
   employee: {
     streaming_width: 1366, streaming_height: 768,
-    avatar_position_x: 0.5, avatar_position_y: 0.7,
-    camera: { zoom: 1, pos_z_off: 0.15 },
+    avatar_position_x: 0.5, avatar_position_y: 0.56,
+    camera: { zoom: 1.4, pos_z_off: 0 },
     background_id: OFFICE.call
   },
   coach: {

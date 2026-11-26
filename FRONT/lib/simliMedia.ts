@@ -135,6 +135,28 @@ export function ignoreClosingSocket(client: SimliClient) {
 }
 
 /**
+ * Play the avatar's own audio element. That stream is the one locked to the mouth.
+ * If the browser blocks it, `onBlocked` receives the stream so the call can play it another way.
+ */
+export function hearMouth(el: HTMLMediaElement, onPlaying: () => void, onBlocked: (voice: MediaStream) => void) {
+  const proto = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "srcObject");
+  if (!proto?.get || !proto.set || Object.prototype.hasOwnProperty.call(el, "srcObject")) return;
+  const set = proto.set;
+  Object.defineProperty(el, "srcObject", {
+    configurable: true,
+    get() { return proto.get!.call(this); },
+    set(value: MediaProvider | null) {
+      set.call(el, value);
+      if (!(value instanceof MediaStream) || !value.getAudioTracks().length) return;
+      const voice = new MediaStream(value.getAudioTracks());
+      el.muted = false;
+      el.volume = 1;
+      void el.play().then(() => onPlaying()).catch(() => onBlocked(voice));
+    }
+  });
+}
+
+/**
  * Simli assigns the spoken stream itself and unmutes it. Keep that speaker off, and never let the video element carry audio.
  * `onStream` still receives what Simli sent, so its audio can be used to measure how late the face is.
  */
@@ -151,6 +173,7 @@ export function keepSilent(el: HTMLMediaElement, videoOnly: boolean, onStream?: 
         set.call(el, stream);
         el.muted = true;
         el.volume = 0;
+        if (videoOnly) void el.play?.().catch(() => {});
       }
     });
   }
