@@ -161,7 +161,7 @@ export function FeedbackScreen({ rec, onRetry, onOther, onReport, onTranscript, 
 
   useEffect(() => {
     if (avatar !== "pending") return;
-    const t = setTimeout(() => setAvatar((a) => (a === "pending" ? "unavailable" : a)), 8000);
+    const t = setTimeout(() => setAvatar((a) => (a === "pending" ? "unavailable" : a)), 22000);
     return () => clearTimeout(t);
   }, [avatar]);
 

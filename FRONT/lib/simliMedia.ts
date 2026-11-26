@@ -116,9 +116,24 @@ function closeOnLeave() {
   });
 }
 
+function reason(e: unknown) {
+  return e instanceof Error ? e.message : String(e);
+}
+
+/** A connected session can still leave the element blank. Only a real frame counts. */
+async function painted(video: HTMLVideoElement, ms: number, isStopped: () => boolean) {
+  const end = performance.now() + ms;
+  while (performance.now() < end) {
+    if (isStopped()) return false;
+    if (video.videoWidth > 0) return true;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  return video.videoWidth > 0;
+}
+
 /**
  * Connect a face, waiting for the account's single slot if another session still holds it.
- * Returns null if it never connects, so the caller keeps the still portrait instead of a black frame.
+ * Returns null if it never paints, so the caller keeps the still portrait instead of a black frame.
  */
 export async function startFace(
   getToken: () => Promise<{ token: string; ice: RTCIceServer[] } | null>,
@@ -127,33 +142,58 @@ export async function startFace(
   isStopped: () => boolean
 ): Promise<SimliClient | null> {
   closeOnLeave();
-  for (let attempt = 0; attempt < 12; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    if (isStopped()) return null;
     const got = await getToken();
     if (!got || isStopped()) return null;
     const client = await createSimli(got.token, video, audio, got.ice);
-    if (isStopped()) { void client.stop().catch(() => {}); return null; }
+    const tunable = client as unknown as { CONNECTION_TIMEOUT_MS: number; MAX_RETRY_ATTEMPTS: number };
+    // One try per client. The loop below owns the retries, including a busy slot.
+    tunable.CONNECTION_TIMEOUT_MS = 8000;
+    tunable.MAX_RETRY_ATTEMPTS = 0;
+    if (isStopped()) { await stopFace(client); return null; }
     client.on("start", () => { if (!isStopped()) void video.play().catch(() => {}); });
     client.on("error", (detail: string) => console.warn("[simli]", detail));
     open.add(client);
+    let shown = false;
     try {
       await client.start();
-      ignoreClosingSocket(client);
-      return client;
+      shown = await painted(video, 4000, isStopped);
+      if (shown && !isStopped()) {
+        ignoreClosingSocket(client);
+        return client;
+      }
+      if (!isStopped()) console.warn("[simli] connected without a picture, retrying");
     } catch (e) {
-      open.delete(client);
-      void client.stop().catch(() => {});
-      if (isStopped()) return null;
-      const busy = /RATE/i.test(String(e));
-      if (!busy && attempt >= 1) { console.warn("[simli] unavailable", e); return null; }
-      await new Promise((r) => setTimeout(r, busy ? 3000 : 1500));
+      if (!isStopped()) console.warn("[simli] retry", reason(e));
     }
+    await stopFace(client);
+    try { video.srcObject = null; audio.srcObject = null; } catch { /* element already gone */ }
+    if (isStopped()) return null;
+    await new Promise((r) => setTimeout(r, 2000));
   }
   return null;
 }
 
 export async function stopFace(client: SimliClient) {
   open.delete(client);
-  await client.stop().catch(() => {});
+  const raw = client as unknown as {
+    audioContext?: AudioContext;
+    connection?: {
+      signalingConnection?: { sendSignal?: (data: string) => void; disconnect?: () => void };
+      pc?: { disconnect?: () => Promise<void> };
+    };
+  };
+  // Closing the socket is what frees the single slot. LiveKit's own disconnect can hang
+  // and leave the coach stuck on her still photo.
+  try { raw.connection?.signalingConnection?.sendSignal?.("DONE"); } catch { /* already closing */ }
+  try { raw.connection?.signalingConnection?.disconnect?.(); } catch { /* already closed */ }
+  void raw.connection?.pc?.disconnect?.().catch(() => {});
+  void raw.audioContext?.close().catch(() => {});
+  await Promise.race([
+    client.stop().catch(() => {}),
+    new Promise((resolve) => setTimeout(resolve, 2000))
+  ]);
 }
 
 let seat: Promise<void> = Promise.resolve();
@@ -173,8 +213,11 @@ export function holdFace(run: (stopped: () => boolean) => Promise<(() => Promise
     if (typeof stop === "function") {
       await Promise.race([
         stop().catch(() => {}),
-        new Promise((resolve) => setTimeout(resolve, 2000))
+        new Promise((resolve) => setTimeout(resolve, 4000))
       ]);
+      // The call that just ended has already set `stopped`. Wait anyway: Simli drops the
+      // slot a moment after the socket closes, and the coach is next in line.
+      await new Promise((resolve) => setTimeout(resolve, 1200));
     }
   }).catch(() => {});
   return () => {
